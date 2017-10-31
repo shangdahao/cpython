@@ -3350,8 +3350,10 @@ exit_eval_frame:
 
 PyObject *
 PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
-           PyObject **args, int argcount, PyObject **kws, int kwcount,
-           PyObject **defs, int defcount, PyObject *closure)
+           PyObject **args, int argcount, // 位置参数信息
+           PyObject **kws, int kwcount, // 键值参数信息
+           PyObject **defs, int defcount, // 函数默认值相关信息
+           PyObject *closure) 
 {
     register PyFrameObject *f;
     register PyObject *retval = NULL;
@@ -3372,13 +3374,18 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
         return NULL;
 
     fastlocals = f->f_localsplus;
-    freevars = f->f_localsplus + co->co_nlocals;
+    freevars = f->f_localsplus + co->co_nlocals; //freevars 是代表什么意思 ？？？？？
 
+    // 判断是否需要处理扩展位置参数或扩展键值参数
+    // 当Python在编译一个函数时，如果在其形式参数中发现了*lst这样的扩展位置参数的参数形式，
+    // 那么Python会在所编译得到的PyCodeObject对象的co_flags中添加一个标识符号：CO_VARARGS，表示该函数在被调用时需要处理扩展位置参数。
+    // 同样，对于函数的形式参数中包含**key这样的参数的函数，Python将在co_flags中添加CO_VARKEYWORDS标识
     if (co->co_argcount > 0 ||
         co->co_flags & (CO_VARARGS | CO_VARKEYWORDS)) {
         int i;
         int n = argcount;
         PyObject *kwdict = NULL;
+        // 创建 PyDictObject 对象，并将其放到 f_localsplus 中
         if (co->co_flags & CO_VARKEYWORDS) {
             kwdict = PyDict_New();
             if (kwdict == NULL)
@@ -3388,6 +3395,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
                 i++;
             SETLOCAL(i, kwdict);
         }
+        // 调用函数时传递的位置参数个数大于函数定义中的位置参数个数
         if (argcount > co->co_argcount) {
             if (!(co->co_flags & CO_VARARGS)) {
                 PyErr_Format(PyExc_TypeError,
@@ -3402,22 +3410,26 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
             }
             n = co->co_argcount;
         }
+        // 设置位置参数的参数值
         for (i = 0; i < n; i++) {
             x = args[i];
             Py_INCREF(x);
-            SETLOCAL(i, x);
+            SETLOCAL(i, x); // 将参数值设置到PyFrameObject的f_localsplus（ locals+stack, dynamically sized ）中
         }
+        // 处理扩展位置参数
         if (co->co_flags & CO_VARARGS) {
-            u = PyTuple_New(argcount - n);
+            u = PyTuple_New(argcount - n); // 位置参数个数 - 函数定义的位置参数个数 = 扩展位置参数个数
             if (u == NULL)
                 goto fail;
-            SETLOCAL(co->co_argcount, u);
-            for (i = n; i < argcount; i++) {
+            SETLOCAL(co->co_argcount, u); // 将u（扩展位置参数的列表）放入到f_localsplus（ locals+stack, dynamically sized ）中
+            // 将扩展位置参数放入到 u 中
+            for (i = n; i < argcount; i++) { // n = 函数定义的位置参数个数
                 x = args[i];
                 Py_INCREF(x);
                 PyTuple_SET_ITEM(u, i-n, x);
             }
         }
+        // 遍历键参数，确定函数的 def 语句中是否出现了键参数的名字
         for (i = 0; i < kwcount; i++) {
             PyObject **co_varnames;
             PyObject *keyword = kws[2*i];
@@ -3436,6 +3448,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
             /* Speed hack: do raw pointer compares. As names are
                normally interned this should almost always hit. */
             co_varnames = ((PyTupleObject *)(co->co_varnames))->ob_item;
+
             for (j = 0; j < co->co_argcount; j++) {
                 PyObject *nm = co_varnames[j];
                 if (nm == keyword)
@@ -3463,6 +3476,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
                 }
                 goto fail;
             }
+            // 在函数的变量名对象表中没有找到 keyword， 那么它属兔扩展键值参数
             PyDict_SetItem(kwdict, keyword, value);
             continue;
           kw_found:
