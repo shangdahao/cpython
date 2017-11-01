@@ -618,6 +618,7 @@ int _PyFrame_Init()
     return 1;
 }
 
+// 创建新的栈帧
 PyFrameObject *
 PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
             PyObject *locals)
@@ -675,7 +676,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
         ncells = PyTuple_GET_SIZE(code->co_cellvars);
         nfrees = PyTuple_GET_SIZE(code->co_freevars);
         extras = code->co_stacksize + code->co_nlocals + ncells +
-            nfrees;
+            nfrees; // 运行时栈、局部变量、cell对象、free对象
         if (free_list == NULL) {
             f = PyObject_GC_NewVar(PyFrameObject, &PyFrame_Type,
             extras);

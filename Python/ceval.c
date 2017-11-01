@@ -2416,8 +2416,8 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
         TARGET(LOAD_DEREF)
         {
-            x = freevars[oparg];
-            w = PyCell_Get(x);
+            x = freevars[oparg]; // 获得PyCellObject对象
+            w = PyCell_Get(x); // 获得PyCellObject.ob_obj指向的对象
             if (w != NULL) {
                 PUSH(w);
                 DISPATCH();
@@ -3353,7 +3353,8 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
            PyObject **args, int argcount, // 位置参数信息
            PyObject **kws, int kwcount, // 键值参数信息
            PyObject **defs, int defcount, // 函数默认值相关信息
-           PyObject *closure) 
+           PyObject *closure // 在PyFunctionObject对象中与PyCodeObject对象绑定的装满了PyCellObject对象的tuple
+        ) 
 {
     register PyFrameObject *f;
     register PyObject *retval = NULL;
@@ -3476,7 +3477,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
                 }
                 goto fail;
             }
-            // 在函数的变量名对象表中没有找到 keyword， 那么它属兔扩展键值参数
+            // 在函数的变量名对象表中没有找到 keyword， 那么它属于扩展键值参数
             PyDict_SetItem(kwdict, keyword, value);
             continue;
           kw_found:
@@ -3494,6 +3495,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
                 goto fail;
             }
             Py_INCREF(value);
+            // 在函数的变量名对象表中找到了 keyword， 那么它属于键值参数
             SETLOCAL(j, value);
         }
         if (argcount < co->co_argcount) {
@@ -3556,12 +3558,14 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
            list so that we can march over it more efficiently?
         */
         for (i = 0; i < PyTuple_GET_SIZE(co->co_cellvars); ++i) {
+            // 获取被嵌套函数的共享的符号名
             cellname = PyString_AS_STRING(
                 PyTuple_GET_ITEM(co->co_cellvars, i));
             found = 0;
             for (j = 0; j < nargs; j++) {
                 argname = PyString_AS_STRING(
                     PyTuple_GET_ITEM(co->co_varnames, j));
+                // 处理被嵌套函数共享的外层函数的默认参数
                 if (strcmp(cellname, argname) == 0) {
                     c = PyCell_New(GETLOCAL(j));
                     if (c == NULL)
@@ -3579,6 +3583,8 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
             }
         }
     }
+
+    // 将PyCellObject对象一个一个放入到f_localsplus中相应的位置
     if (PyTuple_GET_SIZE(co->co_freevars)) {
         int i;
         for (i = 0; i < PyTuple_GET_SIZE(co->co_freevars); ++i) {

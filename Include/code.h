@@ -17,8 +17,8 @@ typedef struct {
     PyObject *co_consts;	/* list (constants used) */
     PyObject *co_names;		/* list of strings (names used) */
     PyObject *co_varnames;	/* tuple of strings (local variable names) */
-    PyObject *co_freevars;	/* tuple of strings (free variable names) */
-    PyObject *co_cellvars;      /* tuple of strings (cell variable names) */
+    PyObject *co_freevars;	/* tuple of strings (free variable names) 保存使用了的外部作用域中的变量名集合*/
+    PyObject *co_cellvars;      /* tuple of strings (cell variable names) 保存嵌套的作用域中使用的变量名集合*/
     /* The rest doesn't count for hash/cmp */
     PyObject *co_filename;	/* string (where it was loaded from) */
     PyObject *co_name;		/* string (name, for reference) */
