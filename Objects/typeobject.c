@@ -3914,6 +3914,7 @@ overrides_name(PyTypeObject *type, char *name)
 #define OVERRIDES_HASH(x)       overrides_name(x, "__hash__")
 #define OVERRIDES_EQ(x)         overrides_name(x, "__eq__")
 
+// Python虚拟机将class对象自身没有设置而基类中设置了的操作拷贝到class对象中，从而完成对基类操作的继承动作
 static void
 inherit_slots(PyTypeObject *type, PyTypeObject *base)
 {
@@ -4110,6 +4111,12 @@ inherit_slots(PyTypeObject *type, PyTypeObject *base)
 
 static int add_operators(PyTypeObject *);
 
+// 对class对象进行初始化, 主要进行了以下操作
+// 设置type信息、基类及基类列表；
+// 填充tp_dict；
+// 确定mro列表；
+// 基于mro列表从基类继承操作；
+// 设置基类的子类列表。
 int
 PyType_Ready(PyTypeObject *type)
 {
@@ -4141,7 +4148,11 @@ PyType_Ready(PyTypeObject *type)
     }
 
     /* Initialize tp_base (defaults to BaseObject unless that's us) */
+    // 尝试获得type的tp_base中指定基类(super type)
     base = type->tp_base;
+    // 对于指定了tp_base的内置class对象，当然就使用指定的基类；
+    // 而对于没有指定tp_base的内置class对象，Python将为其指定一个默认的基类：PyBaseObject_Type。
+    // 这个东西就是那个特殊的<type ‘object’>。
     if (base == NULL && type != &PyBaseObject_Type) {
         base = type->tp_base = &PyBaseObject_Type;
         Py_INCREF(base);
@@ -4152,6 +4163,7 @@ PyType_Ready(PyTypeObject *type)
      */
 
     /* Initialize the base class */
+    // 如果基类没有初始化，先初始化基类
     if (base && base->tp_dict == NULL) {
         if (PyType_Ready(base) < 0)
             goto error;
@@ -4164,11 +4176,14 @@ PyType_Ready(PyTypeObject *type)
        NULL when type is &PyBaseObject_Type, and we know its ob_type is
        not NULL (it's initialized to &PyType_Type).      But coverity doesn't
        know that. */
+    // 设置 type 信息, define Py_TYPE(ob) (((PyObject*)(ob))->ob_type), ob_type信息也就是对象的__class__将返回的信息
     if (Py_TYPE(type) == NULL && base != NULL)
         Py_TYPE(type) = Py_TYPE(base);
 
     /* Initialize tp_bases */
+    // 处理bases : 基类列表
     bases = type->tp_bases;
+    // 如果bases为空，则根据base的情况设定bases
     if (bases == NULL) {
         if (base == NULL)
             bases = PyTuple_New(0);
@@ -4221,6 +4236,7 @@ PyType_Ready(PyTypeObject *type)
     for (i = 1; i < n; i++) {
         PyObject *b = PyTuple_GET_ITEM(bases, i);
         if (PyType_Check(b))
+            // Python虚拟机将class对象自身没有设置而基类中设置了的操作拷贝到class对象中，从而完成对基类操作的继承动作
             inherit_slots(type, (PyTypeObject *)b);
     }
 
@@ -4284,6 +4300,7 @@ PyType_Ready(PyTypeObject *type)
     }
 
     /* Link into each base class's list of subclasses */
+    // 填充基类的子类列表
     bases = type->tp_bases;
     n = PyTuple_GET_SIZE(bases);
     for (i = 0; i < n; i++) {
@@ -6566,9 +6583,11 @@ add_operators(PyTypeObject *type)
     for (p = slotdefs; p->name; p++) {
         if (p->wrapper == NULL)
             continue;
+        // 获得slot对应的操作在PyTypeObject中的函数指针
         ptr = slotptr(type, p->offset);
         if (!ptr || !*ptr)
             continue;
+        // 如果tp_dict中已经存在操作名，则放弃
         if (PyDict_GetItem(dict, p->name_strobj))
             continue;
         if (*ptr == PyObject_HashNotImplemented) {
@@ -6582,6 +6601,7 @@ add_operators(PyTypeObject *type)
             descr = PyDescr_NewWrapper(type, p, *ptr);
             if (descr == NULL)
                 return -1;
+            // 将（操作名，descriptor）放入tp_dict中
             if (PyDict_SetItem(dict, p->name_strobj, descr) < 0) {
                 Py_DECREF(descr);
                 return -1;
