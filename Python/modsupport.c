@@ -62,6 +62,7 @@ Py_InitModule4(const char *name, PyMethodDef *methods, const char *doc,
             _Py_PackageContext = NULL;
         }
     }
+    // 创建 module 对象
     if ((m = PyImport_AddModule(name)) == NULL)
         return NULL;
     d = PyModule_GetDict(m);
@@ -83,6 +84,7 @@ Py_InitModule4(const char *name, PyMethodDef *methods, const char *doc,
                 Py_DECREF(n);
                 return NULL;
             }
+            // 将 buildin methods 放入到 __buildin__ module
             if (PyDict_SetItemString(d, ml->ml_name, v) != 0) {
                 Py_DECREF(v);
                 Py_DECREF(n);

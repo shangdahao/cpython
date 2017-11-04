@@ -635,6 +635,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
         return NULL;
     }
 #endif
+    // 设置builtin名字空间
     if (back == NULL || back->f_globals != globals) {
         builtins = PyDict_GetItem(globals, builtin_object);
         if (builtins) {
@@ -661,6 +662,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
     else {
         /* If we share the globals, we share the builtins.
            Save a lookup and a call. */
+        // Python所有的线程都共享同样的builtin名字空间。
         builtins = back->f_builtins;
         assert(builtins != NULL && PyDict_Check(builtins));
         Py_INCREF(builtins);
@@ -715,10 +717,15 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
     f->f_back = back;
     Py_INCREF(code);
     Py_INCREF(globals);
+
+    // 设置global名字空间
     f->f_globals = globals;
+    
     /* Most functions have CO_NEWLOCALS and CO_OPTIMIZED set. */
+    // 设置local名字空间
     if ((code->co_flags & (CO_NEWLOCALS | CO_OPTIMIZED)) ==
         (CO_NEWLOCALS | CO_OPTIMIZED))
+        // 
         ; /* f_locals = NULL; will be set by PyFrame_FastToLocals() */
     else if (code->co_flags & CO_NEWLOCALS) {
         locals = PyDict_New();
@@ -730,6 +737,7 @@ PyFrame_New(PyThreadState *tstate, PyCodeObject *code, PyObject *globals,
     }
     else {
         if (locals == NULL)
+            //一般情况下，locals和globals指向形同的dict
             locals = globals;
         Py_INCREF(locals);
         f->f_locals = locals;

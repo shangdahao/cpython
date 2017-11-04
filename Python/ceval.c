@@ -2540,6 +2540,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
             break;
         }
 
+        // 访问 instance 对象中的属性
         TARGET(LOAD_ATTR)
         {
             w = GETITEM(names, oparg);
@@ -3370,6 +3371,8 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
 
     assert(tstate != NULL);
     assert(globals != NULL);
+
+    // 创建 PyFrameObject ？？？
     f = PyFrame_New(tstate, co, globals, locals);
     if (f == NULL)
         return NULL;
@@ -3605,7 +3608,7 @@ PyEval_EvalCodeEx(PyCodeObject *co, PyObject *globals, PyObject *locals,
          * and return that as the value. */
         return PyGen_New(f);
     }
-
+    // 执行字节码虚拟机
     retval = PyEval_EvalFrameEx(f,0);
 
 fail: /* Jump here from prelude on failure */
@@ -5020,7 +5023,7 @@ build_class(PyObject *methods, PyObject *bases, PyObject *name)
         PyErr_Fetch(&ptype, &pvalue, &ptraceback);
         if (PyString_Check(pvalue)) {
             PyObject *newmsg;
-            newmsg = PyString_FromFormat(
+            newmsg = PyString_FromFormat(  
                 "Error when calling the metaclass bases\n"
                 "    %s",
                 PyString_AS_STRING(pvalue));

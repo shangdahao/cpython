@@ -396,6 +396,9 @@ imp_modules_reloading_clear(void)
 PyObject *
 PyImport_GetModuleDict(void)
 {
+    // 1. 通过PyThreadState_GET()获得当前线程状态对象
+    // 2. 基于当前线程状态对象获得PyInterpreterState对象
+    // 3. 基于PyInterpreterState对象获得其维护的全局module集合
     PyInterpreterState *interp = PyThreadState_GET()->interp;
     if (interp->modules == NULL)
         Py_FatalError("PyImport_GetModuleDict: no module dictionary!");
@@ -579,6 +582,11 @@ PyObject *
 _PyImport_FixupExtension(char *name, char *filename)
 {
     PyObject *modules, *mod, *dict, *copy;
+
+    // extensions 维护所有已经被Python加载的module中的PyDictObject的一个备份。
+    // 当Python系统的module集合中的某个标准扩展module被删除后不久又被重新加载时，
+    // Python就不需要再次初始化这些module，只需用extensions中备份的PyDictObject对象来创建一个新的module即可。
+    // 这一切是基于这样的一种假设：Python中的标准扩展module是不会在运行时动态改变的。显然，这个假设也合情合理。
     if (extensions == NULL) {
         extensions = PyDict_New();
         if (extensions == NULL)
@@ -635,9 +643,10 @@ _PyImport_FindExtension(char *name, char *filename)
 static PyObject *
 _PyImport_AddModuleObject(PyObject *name)
 {
+    // 获取 Python 维护的 module 集合
     PyObject *modules = PyImport_GetModuleDict();
     PyObject *m;
-
+    
     if ((m = _PyDict_GetItemWithError(modules, name)) != NULL &&
         PyModule_Check(m)) {
         return m;
@@ -645,10 +654,13 @@ _PyImport_AddModuleObject(PyObject *name)
     if (PyErr_Occurred()) {
         return NULL;
     }
+    // 创建新的 module 对象
     m = PyModule_New(PyString_AS_STRING(name));
     if (m == NULL) {
         return NULL;
     }
+
+    // 将新创建的module对象放入Python的全局 module 集合中
     if (PyDict_SetItem(modules, name, m) != 0) {
         Py_DECREF(m);
         return NULL;

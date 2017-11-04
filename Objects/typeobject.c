@@ -734,6 +734,7 @@ type_repr(PyTypeObject *type)
     return rtn;
 }
 
+// 创建 instance 对象
 static PyObject *
 type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -746,7 +747,7 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    obj = type->tp_new(type, args, kwds);
+    obj = type->tp_new(type, args, kwds); // PyBaseObject_Type 中的 object_new
     if (obj != NULL) {
         /* Ugly exception: when the call was type(something),
            don't call tp_init on the result. */
@@ -2087,9 +2088,11 @@ type_init(PyObject *cls, PyObject *args, PyObject *kwds)
     return res;
 }
 
+// 创建 class 对象，在 BUILD_CLASS 指令中被调用，BUILD_CLASS 是 类似 class A:pass 这样的代码生成的指令
 static PyObject *
 type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
-{
+{   
+    // metatype是PyType_Type(<type 'type'>)，args中包含了（类名，基类列表，属性表）
     PyObject *name, *bases, *dict;
     static char *kwlist[] = {"name", "bases", "dict", 0};
     PyObject *slots, *tmp, *newslots;
@@ -2124,6 +2127,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     }
 
     /* Check arguments: (name, bases, dict) */
+    // 将args中的（类名，基类列表，属性表）分别解析到name, bases, dict三个变量中
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "SO!O!:type", kwlist,
                                      &name,
                                      &PyTuple_Type, &bases,
@@ -2134,6 +2138,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
        and check for metatype conflicts while we're at it.
        Note that if some other metatype wins to contract,
        it's possible that its instances are not types. */
+    // 确定最佳metaclass，存储在PyObect *metatype中
     nbases = PyTuple_GET_SIZE(bases);
     winner = metatype;
     for (i = 0; i < nbases; i++) {
@@ -2989,6 +2994,7 @@ object_init(PyObject *self, PyObject *args, PyObject *kwds)
     return err;
 }
 
+// 创建 instance 对象
 static PyObject *
 object_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {

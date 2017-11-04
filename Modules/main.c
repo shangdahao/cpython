@@ -642,6 +642,9 @@ Py_Main(int argc, char **argv)
                 PyErr_Print();
                 sts = 1;
             } else {
+                // 如果以脚本文件方式运行Python，那这里的filename就是文件名，比如abc.py；
+                // 而如果是以交互式方式运行Python，则filename为NULL，所以会为PyRun_AnyFileExFlags传入一个“<stdin>”。
+                // 与之对应的，第一个参数fp或是指向了打开的脚本文件，或是指向了系统的标准输入流stdin。
                 sts = PyRun_AnyFileExFlags(
                     fp,
                     filename == NULL ? "<stdin>" : filename,

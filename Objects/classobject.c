@@ -2246,7 +2246,7 @@ PyTypeObject PyInstance_Type = {
    (b) as unbound methods (returned by ClassName.methodname)
    In case (b), im_self is NULL
 */
-
+// 将PyFunctionObject对象和一个instance对象通过PyMethodObject对象结合在一起的过程就称为成员函数的绑定
 PyObject *
 PyMethod_New(PyObject *func, PyObject *self, PyObject *klass)
 {

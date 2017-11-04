@@ -158,6 +158,7 @@ isatty_no_error(PyObject *sys_stream)
     return 0;
 }
 
+// 初始化
 void
 Py_InitializeEx(int install_sigs)
 {
@@ -200,20 +201,25 @@ Py_InitializeEx(int install_sigs)
 
     _PyRandom_Init();
 
+    // 创建 Python 解释器(进程对象)，PyInterpreterState 维护着当前进程所有的 PyThreadState
     interp = PyInterpreterState_New();
     if (interp == NULL)
         Py_FatalError("Py_Initialize: can't make first interpreter");
 
+    // 创建 Python 线程对象
     tstate = PyThreadState_New(interp);
     if (tstate == NULL)
         Py_FatalError("Py_Initialize: can't make first thread");
     (void) PyThreadState_Swap(tstate);
 
+    // Python 类型系统的初始化
     _Py_ReadyTypes();
 
+    // 设置全局变量 buildin_object
     if (!_PyFrame_Init())
         Py_FatalError("Py_Initialize: can't init frames");
 
+    // 初始化整数对象系统
     if (!_PyInt_Init())
         Py_FatalError("Py_Initialize: can't init ints");
 
@@ -225,7 +231,9 @@ Py_InitializeEx(int install_sigs)
 
     _PyFloat_Init();
 
-    interp->modules = PyDict_New();
+    // 系统 module 初始化
+
+    interp->modules = PyDict_New(); // 维护系统所有的 module
     if (interp->modules == NULL)
         Py_FatalError("Py_Initialize: can't make modules dictionary");
     interp->modules_reloading = PyDict_New();
@@ -237,14 +245,20 @@ Py_InitializeEx(int install_sigs)
     _PyUnicode_Init();
 #endif
 
+    // 初始化 buildin module
     bimod = _PyBuiltin_Init();
     if (bimod == NULL)
         Py_FatalError("Py_Initialize: can't initialize __builtin__");
+    // 把PyModuleObject对象中维护的那个PyDictObject对象抽取出来，将其赋给interp->builtins
+    // 以后Python在需要访问__builtin__ module时，直接访问interp->builtins就可以了，不需要再到interp->modules中去查找。
+    // 因为对__builtin__module的使用在Python中会比较频繁，所以这种加速机制是很有效的。
     interp->builtins = PyModule_GetDict(bimod);
     if (interp->builtins == NULL)
         Py_FatalError("Py_Initialize: can't initialize builtins dict");
     Py_INCREF(interp->builtins);
 
+
+    // 创建 sys module， 过程 和 __buildin__ module 类似
     sysmod = _PySys_Init();
     if (sysmod == NULL)
         Py_FatalError("Py_Initialize: can't initialize sys");
@@ -252,20 +266,30 @@ Py_InitializeEx(int install_sigs)
     if (interp->sysdict == NULL)
         Py_FatalError("Py_Initialize: can't initialize sys dict");
     Py_INCREF(interp->sysdict);
+
+    // 备份 sys module 
+    // 对于Python的扩展module，比如这里的sys，为了避免对它再一次进行初始化，
+    // Python会将所有的扩展module通过一个全局的PyDictObject对象来进行备份维护。
     _PyImport_FixupExtension("sys", "sys");
+    // Python在创建了sys module之后，会在此module中设置Python搜索一个module时的默认搜索路径集合。
+    // 这个路径集合就是在Python执行import xyz时将察看的路径的集合
     PySys_SetPath(Py_GetPath());
+    // 设置sys.modules，可以看到，它就是interp->modules
     PyDict_SetItemString(interp->sysdict, "modules",
                          interp->modules);
-
+    // 初始化import机制的环境
     _PyImport_Init();
 
+    // 初始化Python内建exceptions
     /* initialize builtin exceptions */
     _PyExc_Init();
     _PyImport_FixupExtension("exceptions", "exceptions");
 
     /* phase 2 of builtins */
+    // 备份exceptions module和__builtin__ module
     _PyImport_FixupExtension("__builtin__", "__builtin__");
 
+    // 在sys module中添加一些对象，用于import机制
     _PyImportHooks_Init();
 
     if (install_sigs)
@@ -280,6 +304,7 @@ Py_InitializeEx(int install_sigs)
         Py_XDECREF(warnings_module);
     }
 
+    // 创建 __main__ module
     initmain(); /* Module __main__ */
 
     /* auto-thread-state API, if available */
@@ -287,6 +312,7 @@ Py_InitializeEx(int install_sigs)
     _PyGILState_Init(interp, tstate);
 #endif /* WITH_THREAD */
 
+    // 加载 site-packages
     if (!Py_NoSiteFlag)
         initsite(); /* Module site */
 
@@ -382,6 +408,7 @@ Py_InitializeEx(int install_sigs)
     }
 }
 
+// Python 虚拟机的初始化
 void
 Py_Initialize(void)
 {
@@ -713,13 +740,17 @@ static void
 initmain(void)
 {
     PyObject *m, *d;
+    // 创建__main__ module，并将其插入interp->modules中
     m = PyImport_AddModule("__main__");
     if (m == NULL)
         Py_FatalError("can't create __main__ module");
+    // 获得__main__ module中的dict
     d = PyModule_GetDict(m);
     if (PyDict_GetItemString(d, "__builtins__") == NULL) {
+        // 获得interp->modules中的__builtin__ module
         PyObject *bimod = PyImport_ImportModule("__builtin__");
         if (bimod == NULL ||
+            // 将(“__builtins__”, __builtin__ module)插入到__main__ module的dict中
             PyDict_SetItemString(d, "__builtins__", bimod) != 0)
             Py_FatalError("can't add __builtins__ to __main__");
         Py_XDECREF(bimod);
@@ -751,6 +782,7 @@ PyRun_AnyFileExFlags(FILE *fp, const char *filename, int closeit,
 {
     if (filename == NULL)
         filename = "???";
+    // 根据fp是否代表交互环境，对程序流程进行分流
     if (Py_FdIsInteractive(fp, filename)) {
         int err = PyRun_InteractiveLoopFlags(fp, filename, flags);
         if (closeit)
@@ -772,16 +804,19 @@ PyRun_InteractiveLoopFlags(FILE *fp, const char *filename, PyCompilerFlags *flag
         flags = &local_flags;
         local_flags.cf_flags = 0;
     }
+    // 创建交互式环境提示符“>>> ”
     v = PySys_GetObject("ps1");
     if (v == NULL) {
         PySys_SetObject("ps1", v = PyString_FromString(">>> "));
         Py_XDECREF(v);
     }
+    // 创建交互式环境提示符“... ”
     v = PySys_GetObject("ps2");
     if (v == NULL) {
         PySys_SetObject("ps2", v = PyString_FromString("... "));
         Py_XDECREF(v);
     }
+    // 进入交互式环境
     for (;;) {
         ret = PyRun_InteractiveOneFlags(fp, filename, flags);
         _PyDebug_PrintTotalRefs();
@@ -837,6 +872,7 @@ PyRun_InteractiveOneFlags(FILE *fp, const char *filename, PyCompilerFlags *flags
         else if (PyString_Check(w))
             ps2 = PyString_AsString(w);
     }
+    // 编译用户在交互式环境下输入的Python语句
     arena = PyArena_New();
     if (arena == NULL) {
         Py_XDECREF(v);
@@ -857,12 +893,16 @@ PyRun_InteractiveOneFlags(FILE *fp, const char *filename, PyCompilerFlags *flags
         PyErr_Print();
         return -1;
     }
+    // 获得<module __main__>中维护的dict
     m = PyImport_AddModule("__main__");
     if (m == NULL) {
         PyArena_Free(arena);
         return -1;
     }
+    // 参数d就将作为Python虚拟机开始执行时当前活动的frame对象的local名字空间和global名字空间
     d = PyModule_GetDict(m);
+     
+    // 执行用户输入的Python语句
     v = run_mod(mod, filename, d, d, flags, arena);
     PyArena_Free(arena);
     if (v == NULL) {
@@ -923,6 +963,7 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
     const char *ext;
     int set_file_name = 0, len, ret = -1;
 
+    // 在__main__ module中设置“__file__”属性
     m = PyImport_AddModule("__main__");
     if (m == NULL)
         return -1;
@@ -952,8 +993,10 @@ PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit,
         /* Turn on optimization if a .pyo file is given */
         if (strcmp(ext, ".pyo") == 0)
             Py_OptimizeFlag = 1;
+        // 执行 pyc 文件
         v = run_pyc_file(fp, filename, d, d, flags);
     } else {
+        // 执行 py 脚本文件
         v = PyRun_FileExFlags(fp, filename, Py_file_input, d, d,
                               closeit, flags);
     }
@@ -1360,6 +1403,7 @@ PyRun_FileExFlags(FILE *fp, const char *filename, int start, PyObject *globals,
     if (arena == NULL)
         return NULL;
 
+    // 编译
     mod = PyParser_ASTFromFile(fp, filename, start, 0, 0,
                                flags, NULL, arena);
     if (closeit)
@@ -1368,6 +1412,10 @@ PyRun_FileExFlags(FILE *fp, const char *filename, int start, PyObject *globals,
         PyArena_Free(arena);
         return NULL;
     }
+    // 执行
+    // 脚本文件的执行流程虽然和交互式执行方式的流程在PyRun_Simple- FileExFlags中被分流了，
+    // 但是，它们都有着相同的动作。同交互式执行方式一样，脚本文件的执行流程最后也进入了run_mode，
+    // 而且也同样地将__main__module中维护的PyDictObject对象作为local名字空间和global名字空间传入了run_mode。
     ret = run_mod(mod, filename, globals, locals, flags, arena);
     PyArena_Free(arena);
     return ret;
@@ -1379,9 +1427,11 @@ run_mod(mod_ty mod, const char *filename, PyObject *globals, PyObject *locals,
 {
     PyCodeObject *co;
     PyObject *v;
+    // 基于AST编译字节码指令序列，创建PyCodeObject对象
     co = PyAST_Compile(mod, filename, flags, arena);
     if (co == NULL)
         return NULL;
+    // 创建PyFrameObject对象，执行PyCodeObject对象中的字节码指令序列
     v = PyEval_EvalCode(co, globals, locals);
     Py_DECREF(co);
     return v;

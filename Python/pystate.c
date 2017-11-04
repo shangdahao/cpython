@@ -66,6 +66,7 @@ PyInterpreterState_New(void)
         if (head_mutex == NULL)
             Py_FatalError("Can't initialize threads for interpreter");
 #endif
+        // 存放所有加载到内存中的module的集合，在这个集合中，存放着所有的（module名，module对象）这样的对应关系
         interp->modules = NULL;
         interp->modules_reloading = NULL;
         interp->sysdict = NULL;

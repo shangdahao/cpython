@@ -86,3 +86,6 @@ TAGS
 coverage/
 externals/
 htmlcov/
+.DS_Store
+.vscode/
+*.DS_Store

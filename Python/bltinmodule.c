@@ -2680,11 +2680,13 @@ PyObject *
 _PyBuiltin_Init(void)
 {
     PyObject *mod, *dict, *debug;
+    // 创建并设置 __builtin__ module
     mod = Py_InitModule4("__builtin__", builtin_methods,
                          builtin_doc, (PyObject *)NULL,
                          PYTHON_API_VERSION);
     if (mod == NULL)
         return NULL;
+    // 
     dict = PyModule_GetDict(mod);
 
 #ifdef Py_TRACE_REFS
@@ -2704,6 +2706,7 @@ _PyBuiltin_Init(void)
         return NULL;                                                    \
     ADD_TO_ALL(OBJECT)
 
+    // 将 buildin 对象加入到 __buildin__ module
     SETBUILTIN("None",                  Py_None);
     SETBUILTIN("Ellipsis",              Py_Ellipsis);
     SETBUILTIN("NotImplemented",        Py_NotImplemented);

@@ -1168,6 +1168,7 @@ PyObject_SetAttrString(PyObject *v, const char *name, PyObject *w)
     return res;
 }
 
+// 访问 instance 对象中的属性， w为PyStringObject对象，而v为运行时栈中的那个instance对象
 PyObject *
 PyObject_GetAttr(PyObject *v, PyObject *name)
 {
