@@ -2535,6 +2535,9 @@ PyObject_CallObject(PyObject *o, PyObject *a)
     return PyEval_CallObjectWithKeywords(o, a, NULL);
 }
 
+// PyObject_Call是一个相当范型的函数，它将对一切可调用的（callable）对象进行“调用”操作。
+// 具体地说，最终PyObject_Call将调用func参数对应的类型对象中所定义的tp_call操作。
+// func 是一个 PyCFunctionObject 对象，类型是 PyCFunction_Type
 PyObject *
 PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw)
 {

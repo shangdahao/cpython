@@ -1444,6 +1444,10 @@ getbuffer(PyObject *arg, Py_buffer *view, char **errmsg)
    Geoff Philbrick <philbric@delphi.hks.com> */
 
 /* Return false (0) for error, else true. */
+/*
+PyArg_ParseTupleAndKeywords函数在Python自身的实现中是一个被广泛使用的函数.
+这个函数的目的是将args和kwds中所包含的所有对象按format中指定的格式解析成各种目标对象.
+*/
 int
 PyArg_ParseTupleAndKeywords(PyObject *args,
                             PyObject *keywords,

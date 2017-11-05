@@ -18,6 +18,7 @@ extern dl_funcptr _PyImport_GetDynLoadFunc(const char *name,
 
 
 
+// 调用 C 语言编写的扩展模块
 PyObject *
 _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
 {
@@ -25,6 +26,7 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
     char *lastdot, *shortname, *packagecontext, *oldcontext;
     dl_funcptr p;
 
+    // 在Python的module备份中检查是否有名为name的module
     if ((m = _PyImport_FindExtension(name, pathname)) != NULL) {
         Py_INCREF(m);
         return m;
@@ -39,6 +41,7 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
         shortname = lastdot+1;
     }
 
+    // 从 dll/so 中获得module的初始化函数的起始地址
     p = _PyImport_GetDynLoadFunc(name, shortname, pathname, fp);
     if (PyErr_Occurred())
         return NULL;
@@ -50,11 +53,14 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
     }
     oldcontext = _Py_PackageContext;
     _Py_PackageContext = packagecontext;
+
+    // 调用module的初始化函数
     (*p)();
     _Py_PackageContext = oldcontext;
     if (PyErr_Occurred())
         return NULL;
 
+    // 从sys.modules中获得已经被加载的module
     m = PyDict_GetItemString(PyImport_GetModuleDict(), name);
     if (m == NULL) {
         PyErr_SetString(PyExc_SystemError,
@@ -62,9 +68,11 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
         return NULL;
     }
     /* Remember the filename as the __file__ attribute */
+    // 设置module的__file__属性
     if (PyModule_AddStringConstant(m, "__file__", pathname) < 0)
         PyErr_Clear(); /* Not important enough to report */
 
+    // 将module加入到Python的module备份中
     if (_PyImport_FixupExtension(name, pathname) == NULL)
         return NULL;
     if (Py_VerboseFlag)

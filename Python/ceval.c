@@ -2591,6 +2591,8 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
         TARGET(IMPORT_NAME)
         {
+            
+            // w 是需要被 import 的 PyStringObject 对象 
             w = GETITEM(names, oparg);
             x = PyDict_GetItemString(f->f_builtins, "__import__");
             if (x == NULL) {
@@ -2625,7 +2627,12 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
                 break;
             }
             READ_TIMESTAMP(intr0);
-            v = x;
+
+            //  __builtin__ module，
+            // 在初始化__builtin__ module时，这个函数已经摇身一变，被包装成了一个PyCFunction- Object对象了。
+            // 所以这里的x对应的就是这个PyCFunctionObject对象。
+            v = x; 
+
             x = PyEval_CallObject(v, w);
             Py_DECREF(v);
             READ_TIMESTAMP(intr1);

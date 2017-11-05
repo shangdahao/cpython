@@ -43,6 +43,7 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
     const char *errString;
     char errBuf[512];
 
+    // 获得module的初始化函数名
     PyOS_snprintf(funcname, sizeof(funcname), "_init%.200s", shortname);
 
 #ifdef USE_DYLD_GLOBAL_NAMESPACE

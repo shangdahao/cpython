@@ -25,6 +25,9 @@ struct filedescr {
     char *mode;
     enum filetype type;
 };
+
+// _PyImport_Filetab保存着所有合法的module的元信息。这个全局变量是在Python初始化时调用_PyImport_Init构建的。
+// 在_PyImport_Init中，Python基于_PyImport_DynLoadFiletab和_PyImport_StandardFiletab两个信息来源构建_PyImport_Filetab
 extern struct filedescr * _PyImport_Filetab;
 extern const struct filedescr _PyImport_DynLoadFiletab[];
 

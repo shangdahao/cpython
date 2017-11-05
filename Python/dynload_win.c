@@ -169,6 +169,7 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
     dl_funcptr p;
     char funcname[258], *import_python;
 
+    // 获得module的初始化函数名
     PyOS_snprintf(funcname, sizeof(funcname), "init%.200s", shortname);
 
     {
@@ -192,6 +193,7 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
                             &dummy)) {
             ULONG_PTR cookie = _Py_ActivateActCtx();
             /* XXX This call doesn't exist in Windows CE */
+            // 使用Win32 API加载dll文件
             hDLL = LoadLibraryEx(pathname, NULL,
                                  LOAD_WITH_ALTERED_SEARCH_PATH);
             _Py_DeactivateActCtx(cookie);
@@ -201,6 +203,7 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
         SetErrorMode(old_mode);
 
         if (hDLL==NULL){
+            // 加载dll文件失败，抛出异常
             char errBuf[256];
             unsigned int errorCode;
 
@@ -247,17 +250,20 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
             return NULL;
         } else {
             char buffer[256];
-
+            // 获得当前Python对应的dll文件名
 #ifdef _DEBUG
             PyOS_snprintf(buffer, sizeof(buffer), "python%d%d_d.dll",
 #else
             PyOS_snprintf(buffer, sizeof(buffer), "python%d%d.dll",
 #endif
                           PY_MAJOR_VERSION,PY_MINOR_VERSION);
+            // 获得module中所引用的Python的dll文件名
             import_python = GetPythonImport(hDLL);
 
+            // 确保当前Python对应的dll即是module所引用的dll
             if (import_python &&
                 strcasecmp(buffer,import_python)) {
+                // dll文件不匹配，抛出异常
                 PyOS_snprintf(buffer, sizeof(buffer),
                               "Module use of %.150s conflicts "
                               "with this version of Python.",
@@ -267,6 +273,7 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
                 return NULL;
             }
         }
+        // 调用Win32 API获得module初始化函数的地址
         p = GetProcAddress(hDLL, funcname);
     }
 

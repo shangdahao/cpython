@@ -32,6 +32,7 @@ static PyObject *filterunicode(PyObject *, PyObject *);
 #endif
 static PyObject *filtertuple (PyObject *, PyObject *);
 
+// Python的import机制的起点是builtin module中的__import__操作，也就是builtin__import__函数
 static PyObject *
 builtin___import__(PyObject *self, PyObject *args, PyObject *kwds)
 {
@@ -43,6 +44,18 @@ builtin___import__(PyObject *self, PyObject *args, PyObject *kwds)
     PyObject *fromlist = NULL;
     int level = -1;
 
+    /*
+    从tuple中解析出需要的信息.
+    s代表目标对象是一个char*，通常用来将tuple中的PyStringObject对象解析成char*；
+    i则用来将tuple中的PyIntObject对象解析为int类型的值；
+    而O则代表解析的目标对象依然是一个Python中的合法对象，
+    “|”和“：”，则非格式字符，而是指示字符，“|”指示其后所带的格式字符是可选的。
+    也就是说，如果args中只有一个对象，那么builtin___import__对PyArg_ParseTupleAndKeywords的调用也不会失败。
+    其中，args中的那个对象会按照“s”的指示被解析为char*，
+    而剩下的global、local、fromlist则将会按照“O”的指示被初始化为Py_None，level则保持不变。
+    最后的那个“：”指示格式字符到此就结束了，
+    其后所带字符串用于在解析过程中出错时输出错误信息时使用，可以看到，输出了“：”后面的那个“__import__”，就能很好地定位错误的出现位置了。
+    */
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|OOOi:__import__",
                     kwlist, &name, &globals, &locals, &fromlist, &level))
         return NULL;
